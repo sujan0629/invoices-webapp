@@ -22,9 +22,10 @@ import type { Invoice, LineItem, Transaction, Currency } from '@/lib/types';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import AiDescriptionSuggester from './ai-description-suggester';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { categorizeLineItem } from '@/ai/flows/categorize-line-item';
+import { enhanceLineItemDescription } from '@/ai/flows/enhance-line-item-description';
+
 
 const lineItemSchema = z.object({
   id: z.string(),
@@ -75,9 +76,12 @@ const currencySymbols: Record<Currency, string> = {
 export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addInvoice, updateInvoice, getPreviousLineItems } = useInvoices();
+  const { addInvoice, updateInvoice } = useInvoices();
   const { settings } = useSettings();
   const [isCategorizing, setIsCategorizing] = useState<Record<number, boolean>>({});
+  const [isEnhancing, setIsEnhancing] = useState<Record<number, boolean>>({});
+  const [categoryButtonText, setCategoryButtonText] = useState<Record<number, string>>({});
+  const [enhanceButtonText, setEnhanceButtonText] = useState<Record<number, string>>({});
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -129,19 +133,49 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
 
   const currencySymbol = currencySymbols[watchedCurrency];
   
+  const handleEnhanceDescription = async (index: number) => {
+    const description = form.getValues(`lineItems.${index}.description`);
+    if (!description) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please enter a description first.' });
+      return;
+    }
+
+    setIsEnhancing(prev => ({ ...prev, [index]: true }));
+    try {
+      const result = await enhanceLineItemDescription({ description });
+      if (result.enhancedDescription) {
+        form.setValue(`lineItems.${index}.description`, result.enhancedDescription, { shouldValidate: true });
+        toast({ title: 'Description Enhanced!' });
+        setEnhanceButtonText(prev => ({ ...prev, [index]: 'Enhance Again' }));
+      }
+    } catch (error) {
+      console.error("Failed to get description enhancement:", error);
+      toast({ variant: 'destructive', title: 'AI Error', description: 'Could not enhance description.' });
+      setEnhanceButtonText(prev => ({ ...prev, [index]: 'Enhance' }));
+    } finally {
+      setIsEnhancing(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
   const handleAutoCategory = async (index: number) => {
     const description = form.getValues(`lineItems.${index}.description`);
-    if (!description) return;
+    if (!description) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Please enter a description to suggest a category.' });
+        return;
+    }
 
     setIsCategorizing(prev => ({...prev, [index]: true}));
     try {
       const result = await categorizeLineItem({ description });
       if (result.category) {
-        form.setValue(`lineItems.${index}.category`, result.category);
+        form.setValue(`lineItems.${index}.category`, result.category, { shouldValidate: true });
+        toast({ title: 'Category Suggested!' });
+        setCategoryButtonText(prev => ({ ...prev, [index]: 'Suggest Again' }));
       }
     } catch (error) {
       console.error("Failed to get category suggestion:", error);
       toast({ variant: 'destructive', title: 'AI Error', description: 'Could not fetch category suggestion.' });
+      setCategoryButtonText(prev => ({ ...prev, [index]: 'Suggest' }));
     } finally {
       setIsCategorizing(prev => ({...prev, [index]: false}));
     }
@@ -323,14 +357,24 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                         <FormItem>
                           <FormLabel className={cn(index !== 0 && "sr-only")}>Description</FormLabel>
                           <FormControl>
-                            <AiDescriptionSuggester
-                              {...descField}
-                              previousEntries={getPreviousLineItems()}
-                              onBlur={() => {
-                                descField.onBlur();
-                                handleAutoCategory(index);
-                              }}
-                            />
+                            <div className="relative">
+                               <Textarea
+                                   placeholder="e.g. Website design and development"
+                                   className="pr-32"
+                                   {...descField}
+                               />
+                               <Button
+                                   type="button"
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => handleEnhanceDescription(index)}
+                                   disabled={isEnhancing[index]}
+                                   className="absolute bottom-2 right-2 flex items-center gap-1"
+                               >
+                                   <Sparkles className={cn("h-4 w-4", isEnhancing[index] && "animate-spin")} />
+                                   {isEnhancing[index] ? 'Enhancing...' : (enhanceButtonText[index] || 'Enhance')}
+                               </Button>
+                           </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -343,12 +387,19 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                         <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Category</FormLabel>
                             <FormControl>
-                                <div className="relative">
-                                    <Sparkles className={cn(
-                                        "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground",
-                                        isCategorizing[index] && "animate-spin text-primary"
-                                    )} />
-                                    <Input placeholder="AI will suggest a category..." className="pl-9 text-xs h-8" {...field} />
+                                <div className="flex items-center gap-2">
+                                  <Input placeholder="Enter category or get suggestion" className="text-xs h-8 flex-grow" {...field} />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 flex items-center gap-1"
+                                    onClick={() => handleAutoCategory(index)}
+                                    disabled={isCategorizing[index]}
+                                  >
+                                    <Sparkles className={cn("h-4 w-4", isCategorizing[index] && "animate-spin")} />
+                                    {isCategorizing[index] ? 'Suggesting...' : (categoryButtonText[index] || 'Suggest')}
+                                  </Button>
                                 </div>
                             </FormControl>
                             <FormMessage />
