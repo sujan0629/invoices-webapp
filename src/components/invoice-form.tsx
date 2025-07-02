@@ -93,12 +93,14 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           transactions: invoice.transactions?.map(tx => ({...tx, date: parseISO(tx.date)})) || [],
         }
       : {
-          invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
+          // Use static, non-random values for the initial server render to avoid hydration errors.
+          // These will be replaced by client-side values in the useEffect hook.
+          invoiceNumber: '',
           issueDate: new Date(),
-          dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+          dueDate: new Date(),
           currency: 'USD',
           client: { name: '', address: '' },
-          lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0, category: '' }],
+          lineItems: [{ id: 'initial-item', description: '', quantity: 1, rate: 0, category: '' }],
           status: 'unpaid',
           vatPercent: settings.defaults.vatPercent,
           tdsPercent: settings.defaults.tdsPercent,
@@ -109,12 +111,26 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   });
 
   useEffect(() => {
-    // When settings load, if it's a new invoice, update the defaults
+    // For new invoices, set dynamic/random values only on the client-side after hydration.
+    // This avoids the server-client mismatch that causes hydration errors.
     if (!invoice) {
-        form.setValue('vatPercent', settings.defaults.vatPercent);
-        form.setValue('tdsPercent', settings.defaults.tdsPercent);
+      form.reset({
+        // Reset the form with client-generated values
+        invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
+        issueDate: new Date(),
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+        currency: 'USD',
+        client: { name: '', address: '' },
+        lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0, category: '' }],
+        status: 'unpaid',
+        vatPercent: settings.defaults.vatPercent,
+        tdsPercent: settings.defaults.tdsPercent,
+        amountReceived: 0,
+        showTransactions: false,
+        transactions: [],
+      });
     }
-  }, [settings, form, invoice]);
+  }, [invoice, settings, form]);
 
   const { fields: lineItemFields, append: appendLineItem, remove: removeLineItem } = useFieldArray({
     control: form.control,
