@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -62,8 +63,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setIs2faVerified(true);
                 }
             } else {
-                // If there's a firebase user but no session data, something is wrong. Log out.
-                logout();
+              // This can happen during the login flow race condition or if session is cleared.
+              // Rebuild a basic session from the authUser object instead of logging out.
+              const role =
+                authUser.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
+                  ? 'admin'
+                  : 'user';
+              setRole(role);
+              setIs2faVerified(false); // Always require 2FA on session restore
+              sessionStorage.setItem(
+                'auth-session',
+                JSON.stringify({
+                  role,
+                  email: authUser.email,
+                  is2faVerified: false,
+                })
+              );
             }
         } catch (e) {
             console.error("Error parsing session data", e);
