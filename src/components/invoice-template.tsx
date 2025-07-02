@@ -32,7 +32,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
   };
   
   return (
-    <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 relative overflow-hidden font-mono" id="invoice-template">
+    <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 relative overflow-hidden font-mono border" id="invoice-template">
       <Watermark text={invoice.status} />
       <header className="flex justify-between items-start mb-10 border-b pb-8">
         <div>
@@ -57,15 +57,13 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
       </header>
 
       <section className="mb-10">
-        <div className="grid grid-cols-2 gap-4 mb-8">
-            <div className="text-left">
-                <p className="mb-1"><span className="font-semibold">Issue Date:</span></p>
-                <p>{format(new Date(invoice.issueDate), 'PPP')}</p>
-            </div>
-            <div className="text-left">
-                <p className="mb-1"><span className="font-semibold">Due Date:</span></p>
-                <p>{format(new Date(invoice.dueDate), 'PPP')}</p>
-            </div>
+        <div className="mb-4">
+            <p className="mb-1 font-semibold">Issue Date:</p>
+            <p className="text-muted-foreground">{format(new Date(invoice.issueDate), 'PPP')}</p>
+        </div>
+        <div className="mb-8">
+            <p className="mb-1 font-semibold">Due Date:</p>
+            <p className="text-muted-foreground">{format(new Date(invoice.dueDate), 'PPP')}</p>
         </div>
         <div className="text-left">
           <h3 className="font-semibold mb-2">Invoiced to:</h3>
@@ -76,7 +74,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
 
       <section>
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead className="w-[60%]">Description</TableHead>
               <TableHead className="text-center">Quantity</TableHead>
@@ -136,7 +134,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
           <h3 className="text-xl font-bold mb-4 border-t pt-6">Transactions</h3>
           {invoice.transactions && invoice.transactions.length > 0 ? (
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Gateway</TableHead>
