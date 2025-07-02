@@ -4,27 +4,11 @@ import type { Invoice, Currency } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from './ui/table';
+import Watermark from './watermark';
 
 interface InvoiceTemplateProps {
   invoice: Invoice;
 }
-
-const Watermark = ({ text }: { text: string }) => {
-    let colorClass = '';
-    switch(text.toUpperCase()){
-        case 'PAID': colorClass = 'text-green-500/20'; break;
-        case 'PARTIAL': colorClass = 'text-yellow-500/20'; break;
-        case 'UNPAID': colorClass = 'text-red-500/20'; break;
-    }
-
-  return (
-    <div className={`absolute inset-0 flex items-center justify-center -z-10`}>
-      <p className={`text-9xl font-bold uppercase transform -rotate-45 ${colorClass} select-none`}>
-        {text}
-      </p>
-    </div>
-  );
-};
 
 export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
   const formatCurrency = (amount: number, currency: Currency) => {
