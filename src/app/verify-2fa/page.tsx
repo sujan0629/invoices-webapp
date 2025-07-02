@@ -1,26 +1,60 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/context/auth';
+import { useRouter } from 'next/navigation';
+import { send2faCode } from '@/ai/flows/send-2fa-email';
 
 const verifySchema = z.object({
-  code: z.string().min(6, 'Verification code must be 6 characters.').max(6),
+  code: z.string().length(6, 'Verification code must be 6 characters.'),
 });
 
 type VerifyFormValues = z.infer<typeof verifySchema>;
 
 export default function Verify2FAPage() {
   const { toast } = useToast();
+  const { complete2faVerification, logout } = useAuth();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingCode, setIsSendingCode] = useState(true);
+  const [verificationCode, setVerificationCode] = useState('');
+
+  useEffect(() => {
+    const sessionData = sessionStorage.getItem('auth-session');
+    if (!sessionData) {
+      logout(); // No session, force logout
+      return;
+    }
+
+    const { role, email } = JSON.parse(sessionData);
+    const targetEmail = role === 'admin' ? process.env.NEXT_PUBLIC_ADMIN_2FA_EMAIL! : email;
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setVerificationCode(code);
+
+    async function sendCode() {
+      setIsSendingCode(true);
+      toast({ title: 'Sending Code', description: 'A verification code is being sent...' });
+      
+      const result = await send2faCode({ email: targetEmail, code });
+      if (result.success) {
+        toast({ title: 'Code Sent', description: 'Please check your email for the code.' });
+      } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to send verification code. Please try again.' });
+      }
+      setIsSendingCode(false);
+    }
+    sendCode();
+  }, []);
 
   const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
@@ -29,9 +63,18 @@ export default function Verify2FAPage() {
 
   const onSubmit = async (data: VerifyFormValues) => {
     setIsLoading(true);
-    // Placeholder for 2FA logic
-    console.log('2FA code submitted:', data.code);
-    toast({ title: 'Pending', description: '2FA logic not yet implemented.' });
+    if (data.code === verificationCode) {
+      complete2faVerification();
+      sessionStorage.removeItem('auth-session');
+      toast({ title: 'Success', description: 'Verification successful!' });
+      router.push('/');
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Code',
+        description: 'The code you entered is incorrect.',
+      });
+    }
     setIsLoading(false);
   };
 
@@ -41,7 +84,9 @@ export default function Verify2FAPage() {
         <div className="flex flex-col space-y-2 text-center">
             <ShieldCheck className="mx-auto h-8 w-8 text-primary" />
             <h1 className="text-2xl font-semibold tracking-tight">Two-Factor Authentication</h1>
-            <p className="text-sm text-muted-foreground">Enter the code sent to your email</p>
+            <p className="text-sm text-muted-foreground">
+                Enter the 6-digit code sent to your registered email address.
+            </p>
         </div>
         <Card>
             <CardContent className="p-6">
@@ -60,7 +105,7 @@ export default function Verify2FAPage() {
                         </FormItem>
                     )}
                     />
-                    <Button type="submit" className="w-full" disabled={isLoading}>
+                    <Button type="submit" className="w-full" disabled={isLoading || isSendingCode}>
                     {isLoading ? 'Verifying...' : 'Verify'}
                     </Button>
                 </form>

@@ -1,26 +1,27 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/context/auth';
 import { useToast } from '@/hooks/use-toast';
 import { FileText } from 'lucide-react';
-import { useState } from 'react';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address.'),
-  password: z.string().min(6, 'Password must be at least 6 characters.'),
+  password: z.string().min(1, 'Password is required.'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL!;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,14 +37,25 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await login(data.email, data.password);
-      toast({ title: 'Success', description: 'Logged in successfully.' });
-      router.push('/');
+      const userCredential = await login(data.email, data.password);
+      const user = userCredential.user;
+
+      if (user) {
+        let role = 'user';
+        if (user.email === ADMIN_EMAIL) {
+          role = 'admin';
+        }
+        
+        sessionStorage.setItem('auth-session', JSON.stringify({ role, email: user.email }));
+
+        toast({ title: 'Success', description: 'Redirecting for verification...' });
+        router.push('/verify-2fa');
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: 'Invalid email or password.',
       });
     } finally {
         setIsLoading(false);
@@ -55,8 +67,8 @@ export default function LoginPage() {
       <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
         <div className="flex flex-col space-y-2 text-center">
             <FileText className="mx-auto h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-semibold tracking-tight">Welcome Back</h1>
-            <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Sign In to Your Account</h1>
+            <p className="text-sm text-muted-foreground">Enter your credentials to access the dashboard</p>
         </div>
         <Card>
             <CardContent className="p-6">
@@ -95,12 +107,6 @@ export default function LoginPage() {
                 </Form>
             </CardContent>
         </Card>
-        <p className="px-8 text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link href="/signup" className="underline underline-offset-4 hover:text-primary">
-            Sign Up
-          </Link>
-        </p>
       </div>
     </div>
   );
