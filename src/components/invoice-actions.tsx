@@ -24,13 +24,22 @@ export default function InvoiceActions({ invoiceId }: InvoiceActionsProps) {
   const { deleteInvoice } = useInvoices();
   const { toast } = useToast();
 
-  const handleDelete = () => {
-    deleteInvoice(invoiceId);
-    toast({
-      title: 'Invoice Deleted',
-      description: 'The invoice has been successfully deleted.',
-      variant: 'destructive',
-    });
+  const handleDelete = async () => {
+    try {
+      await deleteInvoice(invoiceId);
+      toast({
+        title: 'Invoice Deleted',
+        description: 'The invoice has been successfully deleted.',
+        variant: 'destructive',
+      });
+    } catch (error) {
+       console.error("Failed to delete invoice:", error);
+       toast({
+         variant: 'destructive',
+         title: 'Error',
+         description: 'Could not delete the invoice.',
+       });
+    }
   };
 
   return (

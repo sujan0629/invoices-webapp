@@ -41,15 +41,20 @@ function ClientForm({ client, onFormSubmit }: ClientFormProps) {
     defaultValues: client ? { name: client.name, email: client.email, address: client.address } : { name: '', email: '', address: '' },
   });
 
-  const onSubmit = (data: ClientFormData) => {
-    if (client) {
-      updateClient(client.id, data);
-      toast({ title: 'Client Updated', description: 'The client has been successfully updated.' });
-    } else {
-      addClient(data);
-      toast({ title: 'Client Added', description: 'The new client has been successfully added.' });
+  const onSubmit = async (data: ClientFormData) => {
+    try {
+      if (client) {
+        await updateClient(client.id, data);
+        toast({ title: 'Client Updated', description: 'The client has been successfully updated.' });
+      } else {
+        await addClient(data);
+        toast({ title: 'Client Added', description: 'The new client has been successfully added.' });
+      }
+      onFormSubmit();
+    } catch (error) {
+       console.error("Failed to save client:", error);
+       toast({ variant: 'destructive', title: 'Error', description: 'Could not save the client.' });
     }
-    onFormSubmit();
   };
 
   return (
@@ -87,12 +92,18 @@ function ClientForm({ client, onFormSubmit }: ClientFormProps) {
 
 export default function ClientsPage() {
   const { clients, deleteClient, loading } = useClients();
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<ManagedClient | null>(null);
   const { toast } = useToast();
 
-  const handleDelete = (id: string) => {
-    deleteClient(id);
-    toast({ variant: 'destructive', title: 'Client Deleted' });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteClient(id);
+      toast({ variant: 'destructive', title: 'Client Deleted' });
+    } catch (error) {
+       console.error("Failed to delete client:", error);
+       toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the client.' });
+    }
   };
 
   return (
@@ -103,7 +114,7 @@ export default function ClientsPage() {
             <CardTitle>Clients</CardTitle>
             <CardDescription>Manage your clients and their contact information.</CardDescription>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
               <Button><PlusCircle /> Add New Client</Button>
             </DialogTrigger>
@@ -111,7 +122,7 @@ export default function ClientsPage() {
               <DialogHeader>
                 <DialogTitle>Add a New Client</DialogTitle>
               </DialogHeader>
-              <ClientForm onFormSubmit={() => setDialogOpen(false)} />
+              <ClientForm onFormSubmit={() => setAddDialogOpen(false)} />
             </DialogContent>
           </Dialog>
         </CardHeader>
@@ -132,14 +143,11 @@ export default function ClientsPage() {
                     <p className="flex items-start gap-3 text-sm text-muted-foreground"><Home className="mt-1" /><span>{client.address}</span></p>
                   </CardContent>
                   <div className="flex items-center justify-end p-4 border-t">
-                    <Dialog>
-                      <DialogTrigger asChild><Button variant="ghost" size="icon"><Edit className="h-4 w-4" /></Button></DialogTrigger>
+                    <Dialog open={editingClient?.id === client.id} onOpenChange={(isOpen) => !isOpen && setEditingClient(null)}>
+                      <DialogTrigger asChild><Button variant="ghost" size="icon" onClick={() => setEditingClient(client)}><Edit className="h-4 w-4" /></Button></DialogTrigger>
                       <DialogContent>
                         <DialogHeader><DialogTitle>Edit Client</DialogTitle></DialogHeader>
-                        <ClientForm client={client} onFormSubmit={() => {
-                          const closeButton = document.querySelector('[aria-label="Close"]');
-                          if (closeButton instanceof HTMLElement) closeButton.click();
-                        }} />
+                        <ClientForm client={client} onFormSubmit={() => setEditingClient(null)} />
                       </DialogContent>
                     </Dialog>
                     <AlertDialog>

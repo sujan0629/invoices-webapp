@@ -93,8 +93,6 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           transactions: invoice.transactions?.map(tx => ({...tx, date: parseISO(tx.date)})) || [],
         }
       : {
-          // Use static, non-random values for the initial server render to avoid hydration errors.
-          // These will be replaced by client-side values in the useEffect hook.
           invoiceNumber: '',
           issueDate: new Date(),
           dueDate: new Date(),
@@ -111,11 +109,8 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   });
 
   useEffect(() => {
-    // For new invoices, set dynamic/random values only on the client-side after hydration.
-    // This avoids the server-client mismatch that causes hydration errors.
     if (!invoice) {
       form.reset({
-        // Reset the form with client-generated values
         invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
         issueDate: new Date(),
         dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
@@ -207,7 +202,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
 
   const { subtotal, vatAmount, tdsAmount, total } = calculateTotals();
 
-  const onSubmit = (data: InvoiceFormData) => {
+  const onSubmit = async (data: InvoiceFormData) => {
     const invoiceData: Omit<Invoice, 'id'> = {
       ...data,
       issueDate: data.issueDate.toISOString(),
@@ -219,14 +214,23 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
       total,
     };
 
-    if (invoice) {
-      updateInvoice(invoice.id, invoiceData);
-      toast({ title: 'Invoice Updated', description: 'The invoice has been successfully updated.' });
-    } else {
-      addInvoice(invoiceData as Invoice);
-      toast({ title: 'Invoice Created', description: 'The new invoice has been successfully created.' });
+    try {
+      if (invoice) {
+        await updateInvoice(invoice.id, invoiceData);
+        toast({ title: 'Invoice Updated', description: 'The invoice has been successfully updated.' });
+      } else {
+        await addInvoice(invoiceData as Invoice);
+        toast({ title: 'Invoice Created', description: 'The new invoice has been successfully created.' });
+      }
+      router.push('/');
+    } catch (error) {
+        console.error("Failed to save invoice:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not save the invoice. Please try again.',
+        });
     }
-    router.push('/');
   };
 
   return (

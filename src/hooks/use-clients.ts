@@ -3,58 +3,88 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ManagedClient } from '@/lib/types';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/context/auth';
+import {
+  collection,
+  query,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  orderBy,
+} from 'firebase/firestore';
 
-const CLIENTS_STORAGE_KEY = 'managed-clients';
+const CLIENTS_COLLECTION = 'clients';
 
 export function useClients() {
   const [clients, setClients] = useState<ManagedClient[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user, is2faVerified } = useAuth();
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(CLIENTS_STORAGE_KEY);
-      if (stored) {
-        setClients(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Failed to load clients from localStorage', error);
-    } finally {
+    if (!user || !is2faVerified) {
+      setClients([]);
       setLoading(false);
+      return;
     }
-  }, []);
 
-  const saveClients = useCallback((updatedClients: ManagedClient[]) => {
-    try {
-      localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(updatedClients));
-      setClients(updatedClients);
-    } catch (error) {
-      console.error('Failed to save clients to localStorage', error);
-    }
-  }, []);
+    setLoading(true);
+    const q = query(collection(db, CLIENTS_COLLECTION), orderBy('name'));
 
-  const getClient = useCallback((id: string) => {
-    return clients.find((client) => client.id === id);
-  }, [clients]);
-
-  const addClient = useCallback((client: Omit<ManagedClient, 'id'>) => {
-    const newClient = { ...client, id: crypto.randomUUID() };
-    const updatedClients = [...clients, newClient];
-    saveClients(updatedClients);
-    return newClient;
-  }, [clients, saveClients]);
-
-  const updateClient = useCallback((id: string, updatedClientData: Partial<Omit<ManagedClient, 'id'>>) => {
-    const updatedClients = clients.map((client) =>
-      client.id === id ? { ...client, ...updatedClientData } : client
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        const clientsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ManagedClient[];
+        setClients(clientsData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching clients:', error);
+        setLoading(false);
+      }
     );
-    saveClients(updatedClients);
-  }, [clients, saveClients]);
 
-  const deleteClient = useCallback((id: string) => {
-    const updatedClients = clients.filter((client) => client.id !== id);
-    saveClients(updatedClients);
-  }, [clients, saveClients]);
+    return () => unsubscribe();
+  }, [user, is2faVerified]);
 
+  const getClient = useCallback(
+    (id: string) => {
+      return clients.find((client) => client.id === id);
+    },
+    [clients]
+  );
+
+  const addClient = useCallback(
+    async (client: Omit<ManagedClient, 'id'>) => {
+      if (!user) throw new Error('User not authenticated');
+      const docRef = await addDoc(collection(db, CLIENTS_COLLECTION), client);
+      return { ...client, id: docRef.id } as ManagedClient;
+    },
+    [user]
+  );
+
+  const updateClient = useCallback(
+    async (id: string, updatedClientData: Partial<Omit<ManagedClient, 'id'>>) => {
+      if (!user) throw new Error('User not authenticated');
+      const clientDoc = doc(db, CLIENTS_COLLECTION, id);
+      await updateDoc(clientDoc, updatedClientData);
+    },
+    [user]
+  );
+
+  const deleteClient = useCallback(
+    async (id: string) => {
+      if (!user) throw new Error('User not authenticated');
+      const clientDoc = doc(db, CLIENTS_COLLECTION, id);
+      await deleteDoc(clientDoc);
+    },
+    [user]
+  );
 
   return {
     clients,

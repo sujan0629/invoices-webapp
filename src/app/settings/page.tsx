@@ -37,22 +37,30 @@ export default function SettingsPage() {
 
   const form = useForm<AppSettings>({
     resolver: zodResolver(settingsSchema),
-    values: settings, // Use `values` to make the form reactive to external changes
+    values: settings,
   });
 
   useEffect(() => {
-    // Reset the form when the settings are loaded from storage
     if (settings) {
       form.reset(settings);
     }
   }, [settings, form]);
 
-  const onSubmit = (data: AppSettings) => {
-    updateSettings(data);
-    toast({
-      title: 'Settings Saved',
-      description: 'Your changes have been saved successfully.',
-    });
+  const onSubmit = async (data: AppSettings) => {
+    try {
+        await updateSettings(data);
+        toast({
+        title: 'Settings Saved',
+        description: 'Your changes have been saved successfully.',
+        });
+    } catch (error) {
+        console.error("Failed to save settings:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not save settings. Please try again.',
+        });
+    }
   };
 
   if (loading) {
