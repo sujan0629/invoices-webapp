@@ -14,6 +14,7 @@ import {z} from 'genkit';
 
 const SupportAssistantInputSchema = z.object({
   query: z.string().describe("The user's question for the support assistant."),
+  invoiceContext: z.string().optional().describe("JSON stringified context of a specific invoice the user is asking about."),
 });
 export type SupportAssistantInput = z.infer<typeof SupportAssistantInputSchema>;
 
@@ -43,6 +44,13 @@ Here is a summary of the application's features:
 - Clients & Projects: A section to manage a list of client contacts.
 - Settings: Allows users to update their company profile (name, address, PAN, logo) and set default tax rates for new invoices.
 - Authentication: The app supports two roles: Admin and Financial Officer. Admins can invite officers. All users must use 2-Factor Authentication (2FA) to log in.
+
+{{#if invoiceContext}}
+The user is asking a question about a specific invoice. Here is the information for that invoice:
+{{{invoiceContext}}}
+
+Use this information to answer the user's question accurately.
+{{/if}}
 
 User's Question:
 "{{{query}}}"

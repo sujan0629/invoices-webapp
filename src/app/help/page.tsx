@@ -10,6 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { askSupportAssistant } from '@/ai/flows/support-assistant';
 import { LifeBuoy, Send, Bot, User } from 'lucide-react';
 import { useAuth } from '@/context/auth';
+import { useInvoices } from '@/hooks/use-invoices';
+import { format } from 'date-fns';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -18,8 +20,9 @@ interface Message {
 
 export default function HelpPage() {
   const { user } = useAuth();
+  const { getInvoice } = useInvoices();
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I'm your AI support assistant. How can I help you with the Invoice Manager today?" }
+    { role: 'assistant', content: "Hello! I'm your AI support assistant. I can answer questions about the app, or even look up invoice details for you. Try asking 'What's the status of invoice INV-1234'?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,11 +32,31 @@ export default function HelpPage() {
 
     const userMessage: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
+    let invoiceContext: string | undefined = undefined;
+
+    // Check if the user is asking about a specific invoice
+    const invoiceNumberMatch = currentInput.match(/#?([A-Z]{3,4}-?\d+)/i);
+    if (invoiceNumberMatch) {
+      const invoiceId = invoiceNumberMatch[1];
+      const invoice = getInvoice(invoiceId, 'invoiceNumber');
+      if (invoice) {
+        invoiceContext = JSON.stringify({
+            invoiceNumber: invoice.invoiceNumber,
+            status: invoice.status,
+            total: invoice.total,
+            currency: invoice.currency,
+            dueDate: format(new Date(invoice.dueDate), 'PPP'),
+            clientName: invoice.client.name,
+        });
+      }
+    }
+
     try {
-      const result = await askSupportAssistant({ query: input });
+      const result = await askSupportAssistant({ query: currentInput, invoiceContext });
       const assistantMessage: Message = { role: 'assistant', content: result.response };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {

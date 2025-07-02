@@ -26,6 +26,7 @@ export interface LineItem {
   description: string;
   quantity: number;
   rate: number;
+  category?: string;
 }
 
 export interface Transaction {

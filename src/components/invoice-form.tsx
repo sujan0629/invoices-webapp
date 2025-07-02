@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Trash2, Sparkles } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -24,12 +24,14 @@ import { Switch } from './ui/switch';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import AiDescriptionSuggester from './ai-description-suggester';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { categorizeLineItem } from '@/ai/flows/categorize-line-item';
 
 const lineItemSchema = z.object({
   id: z.string(),
   description: z.string().min(1, 'Description is required.'),
   quantity: z.coerce.number().min(0.01, 'Quantity must be positive.'),
   rate: z.coerce.number().min(0, 'Rate cannot be negative.'),
+  category: z.string().optional(),
 });
 
 const transactionSchema = z.object({
@@ -75,6 +77,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const { toast } = useToast();
   const { addInvoice, updateInvoice, getPreviousLineItems } = useInvoices();
   const { settings } = useSettings();
+  const [isCategorizing, setIsCategorizing] = useState<Record<number, boolean>>({});
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -91,7 +94,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
           currency: 'USD',
           client: { name: '', address: '' },
-          lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 }],
+          lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0, category: '' }],
           status: 'unpaid',
           vatPercent: settings.defaults.vatPercent,
           tdsPercent: settings.defaults.tdsPercent,
@@ -125,6 +128,24 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const watchedCurrency = form.watch('currency');
 
   const currencySymbol = currencySymbols[watchedCurrency];
+  
+  const handleAutoCategory = async (index: number) => {
+    const description = form.getValues(`lineItems.${index}.description`);
+    if (!description) return;
+
+    setIsCategorizing(prev => ({...prev, [index]: true}));
+    try {
+      const result = await categorizeLineItem({ description });
+      if (result.category) {
+        form.setValue(`lineItems.${index}.category`, result.category);
+      }
+    } catch (error) {
+      console.error("Failed to get category suggestion:", error);
+      toast({ variant: 'destructive', title: 'AI Error', description: 'Could not fetch category suggestion.' });
+    } finally {
+      setIsCategorizing(prev => ({...prev, [index]: false}));
+    }
+  };
 
   const calculateTotals = () => {
     const subtotal = watchedLineItems.reduce((acc, item) => acc + (item.quantity || 0) * (item.rate || 0), 0);
@@ -293,23 +314,48 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           <CardContent>
             <div className="space-y-4">
               {lineItemFields.map((field, index) => (
-                <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start">
-                  <FormField
-                    control={form.control}
-                    name={`lineItems.${index}.description`}
-                    render={({ field }) => (
-                      <FormItem className="flex-grow">
-                        <FormLabel className={cn(index !== 0 && "sr-only")}>Description</FormLabel>
-                        <FormControl>
-                          <AiDescriptionSuggester
-                            {...field}
-                            previousEntries={getPreviousLineItems()}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start p-2 border-b">
+                  <div className='flex-grow space-y-2'>
+                    <FormField
+                      control={form.control}
+                      name={`lineItems.${index}.description`}
+                      render={({ field: descField }) => (
+                        <FormItem>
+                          <FormLabel className={cn(index !== 0 && "sr-only")}>Description</FormLabel>
+                          <FormControl>
+                            <AiDescriptionSuggester
+                              {...descField}
+                              previousEntries={getPreviousLineItems()}
+                              onBlur={() => {
+                                descField.onBlur();
+                                handleAutoCategory(index);
+                              }}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name={`lineItems.${index}.category`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Category</FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Sparkles className={cn(
+                                        "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground",
+                                        isCategorizing[index] && "animate-spin text-primary"
+                                    )} />
+                                    <Input placeholder="AI will suggest a category..." className="pl-9 text-xs h-8" {...field} />
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                  </div>
                   <FormField
                     control={form.control}
                     name={`lineItems.${index}.quantity`}
@@ -363,7 +409,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => appendLineItem({ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 })}
+              onClick={() => appendLineItem({ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0, category: '' })}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Add Line Item
             </Button>

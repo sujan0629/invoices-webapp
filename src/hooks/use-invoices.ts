@@ -38,8 +38,11 @@ export function useInvoices() {
     }
   }, []);
 
-  const getInvoice = useCallback((id: string) => {
-    return invoices.find((invoice) => invoice.id === id);
+  const getInvoice = useCallback((identifier: string, by: 'id' | 'invoiceNumber' = 'id') => {
+    if (by === 'id') {
+        return invoices.find((invoice) => invoice.id === identifier);
+    }
+    return invoices.find((invoice) => invoice.invoiceNumber.toLowerCase() === identifier.toLowerCase());
   }, [invoices]);
 
   const addInvoice = useCallback((invoice: Omit<Invoice, 'id'>) => {
