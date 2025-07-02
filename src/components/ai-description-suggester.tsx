@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
 import { suggestLineItemDescription } from '@/ai/flows/suggest-line-item-description';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger, PopoverAnchor } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface AiDescriptionSuggesterProps {
   value: string;
@@ -63,7 +63,7 @@ export default function AiDescriptionSuggester({
   
   return (
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-        <PopoverAnchor asChild>
+        <PopoverTrigger asChild>
           <Input
             placeholder="e.g. Website design and development"
             value={value}
@@ -74,7 +74,7 @@ export default function AiDescriptionSuggester({
             autoComplete="off"
             className="w-full"
           />
-        </PopoverAnchor>
+        </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-1">
         {isLoading ? (
           <div className="p-2 text-sm text-muted-foreground">Loading suggestions...</div>
