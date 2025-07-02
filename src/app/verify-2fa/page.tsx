@@ -39,7 +39,7 @@ export default function Verify2FAPage() {
 
     const { role, email } = JSON.parse(sessionData);
     setRole(role);
-    const targetEmail = role === 'admin' ? process.env.ADMIN_2FA_EMAIL! : email;
+    const targetEmail = role === 'admin' ? process.env.NEXT_PUBLIC_ADMIN_2FA_EMAIL! : email;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setVerificationCode(code);
 
