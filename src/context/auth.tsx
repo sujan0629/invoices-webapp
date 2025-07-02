@@ -34,18 +34,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<Role>(null);
   const router = useRouter();
 
+  const logout = useCallback(async () => {
+    if (!auth) return;
+    await signOut(auth);
+    sessionStorage.removeItem('auth-session');
+    sessionStorage.removeItem('2fa-verification-code');
+    sessionStorage.removeItem('2fa-last-sent-ts');
+    setIs2faVerified(false);
+    setRole(null);
+    router.push('/login');
+  }, [router]);
+
   useEffect(() => {
     if (!auth) {
       setLoading(false);
       return;
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        const sessionData = sessionStorage.getItem('auth-session');
-        if(sessionData) {
-            const { role } = JSON.parse(sessionData);
-            setRole(role);
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      setUser(authUser);
+      if (authUser) {
+        try {
+            const sessionData = sessionStorage.getItem('auth-session');
+            if(sessionData) {
+                const { role: sessionRole, is2faVerified: session2faVerified } = JSON.parse(sessionData);
+                setRole(sessionRole);
+                if (session2faVerified) {
+                    setIs2faVerified(true);
+                }
+            } else {
+                // If there's a firebase user but no session data, something is wrong. Log out.
+                logout();
+            }
+        } catch (e) {
+            console.error("Error parsing session data", e);
+            logout();
         }
       } else {
         setIs2faVerified(false);
@@ -56,7 +78,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [logout]);
 
   const login = useCallback((email: string, pass: string) => {
     if (!auth) return Promise.reject(new Error("Firebase not initialized"));
@@ -67,19 +89,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!auth) return Promise.reject(new Error("Firebase not initialized"));
     return createUserWithEmailAndPassword(auth, email, pass);
   }, []);
-
-  const logout = useCallback(async () => {
-    if (!auth) return;
-    await signOut(auth);
-    sessionStorage.removeItem('auth-session');
-    setIs2faVerified(false);
-    setRole(null);
-    router.push('/login');
-  }, [router]);
   
   const complete2faVerification = useCallback(() => {
     if (user) {
-        setIs2faVerified(true);
+        try {
+            const sessionData = sessionStorage.getItem('auth-session');
+            if (sessionData) {
+                const data = JSON.parse(sessionData);
+                data.is2faVerified = true;
+                sessionStorage.setItem('auth-session', JSON.stringify(data));
+                setIs2faVerified(true);
+            }
+        } catch (e) {
+            console.error("Error updating session data", e);
+        }
     }
   }, [user]);
 

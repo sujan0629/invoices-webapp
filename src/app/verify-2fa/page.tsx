@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -28,6 +27,7 @@ const verifySchema = z.object({
 type VerifyFormValues = z.infer<typeof verifySchema>;
 
 const TS_KEY = '2fa-last-sent-ts';
+const CODE_KEY = '2fa-verification-code';
 const THROTTLE_MS = 30_000; // 30 seconds
 
 export default function Verify2FAPage() {
@@ -37,51 +37,52 @@ export default function Verify2FAPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
   const [role, setRole] = useState('');
 
   const handleSendCode = useCallback(async () => {
     const lastTs = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
-    if (Date.now() - lastTs < THROTTLE_MS) {
-      return;
-    }
-    sessionStorage.setItem(TS_KEY, Date.now().toString());
-
-    const sessionData = sessionStorage.getItem('auth-session');
-    if (!sessionData) {
+    if (Date.now() - lastTs < THROTTLE_MS && lastTs !== 0) {
+      const secondsLeft = Math.ceil((THROTTLE_MS - (Date.now() - lastTs)) / 1000);
       toast({
         variant: 'destructive',
-        title: 'Session Error',
-        description: 'Your session could not be found. Please log in again.',
+        title: 'Please wait',
+        description: `You can request another code in ${secondsLeft} seconds.`,
       });
-      logout();
       return;
     }
-
+    
     setIsSending(true);
     toast({ title: 'Sending Code', description: 'A verification code is on its way...' });
 
-    const { role, email } = JSON.parse(sessionData);
-    setRole(role);
-    const targetEmail =
-      role === 'admin'
-        ? process.env.NEXT_PUBLIC_ADMIN_2FA_EMAIL!
-        : email;
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setVerificationCode(code);
-
     try {
-      const result = await send2faCode({ email: targetEmail, code });
-      if (!result.success) throw new Error('Failed to send');
-      toast({ title: 'Code Sent', description: 'Please check your email.' });
-    } catch {
-      sessionStorage.removeItem(TS_KEY);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to send code. Please try again.',
-      });
+        const sessionData = sessionStorage.getItem('auth-session');
+        if (!sessionData) {
+          throw new Error('Session data not found. Please log in again.');
+        }
+
+        const { role: sessionRole, email } = JSON.parse(sessionData);
+        setRole(sessionRole);
+        const targetEmail =
+          sessionRole === 'admin'
+            ? process.env.NEXT_PUBLIC_ADMIN_2FA_EMAIL!
+            : email;
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        sessionStorage.setItem(CODE_KEY, code);
+
+        const result = await send2faCode({ email: targetEmail, code });
+        if (!result.success) throw new Error('Failed to send email via API.');
+        
+        sessionStorage.setItem(TS_KEY, Date.now().toString());
+        toast({ title: 'Code Sent', description: 'Please check your email.' });
+
+    } catch(error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'Failed to send code. Please try again.',
+        });
+        await logout();
     } finally {
       setIsSending(false);
     }
@@ -89,9 +90,13 @@ export default function Verify2FAPage() {
 
   useEffect(() => {
     if (user) {
-      handleSendCode();
+      // Only call on initial load. Resends are manual.
+      const lastTs = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
+      if (lastTs === 0) {
+        handleSendCode();
+      }
     }
-  }, [user, handleSendCode]);
+  }, [user]);
 
   const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
@@ -100,9 +105,12 @@ export default function Verify2FAPage() {
 
   const onSubmit = async (data: VerifyFormValues) => {
     setIsLoading(true);
-    if (data.code === verificationCode) {
-      complete2faVerification();
+    const correctCode = sessionStorage.getItem(CODE_KEY);
+
+    if (data.code === correctCode) {
+      sessionStorage.removeItem(CODE_KEY);
       sessionStorage.removeItem(TS_KEY);
+      complete2faVerification();
       toast({ title: 'Success', description: 'Verification successful!' });
       router.push('/');
     } else {
@@ -117,7 +125,6 @@ export default function Verify2FAPage() {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
   }
 
   return (
