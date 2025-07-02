@@ -11,8 +11,9 @@ import {
   UserPlus,
   Users,
   Settings,
+  LifeBuoy,
   LogOut,
-  X
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COMPANY_PROFILE } from '@/lib/company';
@@ -53,6 +54,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     { href: '/invites', icon: UserPlus, label: 'Invite Officer', adminOnly: true },
     { href: '/clients', icon: Users, label: 'Clients & Projects', adminOnly: false },
     { href: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
+    { href: '/help', icon: LifeBuoy, label: 'Help / Support', adminOnly: false },
   ];
 
   return (

@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import DashboardLayout from '@/components/dashboard-layout';
 import { AuthProvider } from '@/context/auth';
+import { ChatWidgetProvider } from '@/context/chat-widget';
 
 export const metadata: Metadata = {
   title: 'Codelits Studio Invoice Manager',
@@ -24,7 +25,9 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          <DashboardLayout>{children}</DashboardLayout>
+          <ChatWidgetProvider>
+            <DashboardLayout>{children}</DashboardLayout>
+          </ChatWidgetProvider>
         </AuthProvider>
         <Toaster />
       </body>

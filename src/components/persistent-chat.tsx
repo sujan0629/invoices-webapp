@@ -19,6 +19,7 @@ import { LifeBuoy, Send, Bot, User, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/context/auth';
 import { useInvoices } from '@/hooks/use-invoices';
 import { format } from 'date-fns';
+import { useChatWidget } from '@/context/chat-widget';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,6 +29,7 @@ interface Message {
 export default function PersistentChat() {
   const { user } = useAuth();
   const { getInvoice } = useInvoices();
+  const { isChatOpen, setChatOpen } = useChatWidget();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -88,7 +90,7 @@ export default function PersistentChat() {
   };
 
   return (
-    <Sheet>
+    <Sheet open={isChatOpen} onOpenChange={setChatOpen}>
       <SheetTrigger asChild>
         <Button
           className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50"
