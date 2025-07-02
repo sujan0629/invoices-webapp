@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,14 +26,17 @@ export default function Verify2FAPage() {
   const { complete2faVerification, logout } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSendingCode, setIsSendingCode] = useState(true);
+  const [isSendingCode, setIsSendingCode] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [role, setRole] = useState('');
 
-  useEffect(() => {
+  const handleSendCode = useCallback(async () => {
+    setIsSendingCode(true);
+    toast({ title: 'Sending Code', description: 'A verification code is being sent...' });
+
     const sessionData = sessionStorage.getItem('auth-session');
     if (!sessionData) {
-      logout(); // No session, force logout
+      logout();
       return;
     }
 
@@ -43,20 +46,19 @@ export default function Verify2FAPage() {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setVerificationCode(code);
 
-    async function sendCode() {
-      setIsSendingCode(true);
-      toast({ title: 'Sending Code', description: 'A verification code is being sent...' });
-      
-      const result = await send2faCode({ email: targetEmail, code });
-      if (result.success) {
-        toast({ title: 'Code Sent', description: 'Please check your email for the code.' });
-      } else {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to send verification code. Please try again.' });
-      }
-      setIsSendingCode(false);
+    const result = await send2faCode({ email: targetEmail, code });
+    if (result.success) {
+      toast({ title: 'Code Sent', description: 'Please check your email for the code.' });
+    } else {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to send verification code. Please try again.' });
     }
-    sendCode();
+    setIsSendingCode(false);
   }, [logout, toast]);
+
+  useEffect(() => {
+    handleSendCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
@@ -76,8 +78,8 @@ export default function Verify2FAPage() {
         title: 'Invalid Code',
         description: 'The code you entered is incorrect.',
       });
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -117,6 +119,14 @@ export default function Verify2FAPage() {
                 </Form>
             </CardContent>
         </Card>
+        <div className="flex justify-between items-center text-sm">
+            <Button variant="link" onClick={() => logout()} className="p-0 h-auto">
+                Back to login
+            </Button>
+            <Button variant="link" onClick={handleSendCode} disabled={isSendingCode} className="p-0 h-auto">
+                {isSendingCode ? 'Sending...' : 'Resend code'}
+            </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { getAuth, onAuthStateChanged, User, signOut, signInWithEmailAndPassword, Auth, UserCredential } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
@@ -48,24 +48,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, []);
 
-  const login = (email: string, pass: string) => {
+  const login = useCallback((email: string, pass: string) => {
     if (!auth) return Promise.reject(new Error("Firebase not initialized"));
     return signInWithEmailAndPassword(auth, email, pass);
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     if (!auth) return;
     await signOut(auth);
     sessionStorage.removeItem('auth-session');
     setIs2faVerified(false);
     router.push('/login');
-  };
+  }, [router]);
   
-  const complete2faVerification = () => {
+  const complete2faVerification = useCallback(() => {
     if (user) {
         setIs2faVerified(true);
     }
-  };
+  }, [user]);
 
   const value = {
     user,
