@@ -14,6 +14,13 @@ export interface Client {
   address: string;
 }
 
+export interface ManagedClient {
+  id: string;
+  name: string;
+  email: string;
+  address: string;
+}
+
 export interface LineItem {
   id: string;
   description: string;
@@ -22,7 +29,7 @@ export interface LineItem {
 }
 
 export interface Transaction {
-  id: string;
+  id:string;
   date: string;
   gateway: string;
   transactionId: string;
@@ -53,4 +60,12 @@ export interface Invitation {
   email: string;
   code: string;
   status: 'pending' | 'accepted';
+}
+
+export interface AppSettings {
+    company: Company;
+    defaults: {
+        vatPercent: number;
+        tdsPercent: number;
+    }
 }

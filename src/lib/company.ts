@@ -1,6 +1,8 @@
 
 import type { Company } from './types';
 
+// This serves as the initial default profile for first-time users.
+// After first use, settings will be loaded from local storage.
 export const COMPANY_PROFILE: Company = {
   name: 'Codelits Studio Pvt. Ltd.',
   address: 'Kathmandu, Nepal',

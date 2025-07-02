@@ -1,38 +1,74 @@
 
-import { COMPANY_PROFILE } from '@/lib/company';
+'use client';
+
+import { useSettings } from '@/hooks/use-settings';
 import type { Invoice, Currency } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from './ui/table';
 import Watermark from './watermark';
+import { Skeleton } from './ui/skeleton';
 
 interface InvoiceTemplateProps {
   invoice: Invoice;
 }
 
+function InvoiceTemplateSkeleton() {
+    return (
+        <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 border">
+            <header className="flex justify-between items-start mb-10 border-b pb-8">
+                <div>
+                    <Skeleton className="h-[50px] w-[150px] mb-4" />
+                    <Skeleton className="h-7 w-48 mb-2" />
+                    <Skeleton className="h-5 w-64" />
+                    <Skeleton className="h-5 w-32 mt-1" />
+                </div>
+                <div className="text-right">
+                    <Skeleton className="h-9 w-32 mb-2" />
+                    <Skeleton className="h-5 w-24" />
+                </div>
+            </header>
+            <section className="mb-10">
+                <Skeleton className="h-20 w-1/2" />
+            </section>
+            <section>
+                <Skeleton className="h-64 w-full" />
+            </section>
+        </div>
+    )
+}
+
+
 export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
+  const { settings, loading } = useSettings();
+  const companyProfile = settings.company;
+  
   const formatCurrency = (amount: number, currency: Currency) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
   };
   
+  if (loading) {
+    return <InvoiceTemplateSkeleton />;
+  }
+
   return (
     <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 relative overflow-hidden font-mono border" id="invoice-template">
       <Watermark text={invoice.status} />
       <header className="flex justify-between items-start mb-10 border-b pb-8">
         <div>
-          {COMPANY_PROFILE.logoUrl && (
+          {companyProfile.logoUrl && (
             <Image
-              src={COMPANY_PROFILE.logoUrl}
-              alt={COMPANY_PROFILE.name}
+              src={companyProfile.logoUrl}
+              alt={companyProfile.name}
               width={150}
               height={50}
               data-ai-hint="company logo"
               className="mb-4"
             />
           )}
-          <h1 className="text-2xl font-bold">{COMPANY_PROFILE.name}</h1>
-          <p className="text-muted-foreground">{COMPANY_PROFILE.address}</p>
-          <p className="text-muted-foreground">PAN: {COMPANY_PROFILE.pan}</p>
+          <h1 className="text-2xl font-bold">{companyProfile.name}</h1>
+          <p className="text-muted-foreground">{companyProfile.address}</p>
+          <p className="text-muted-foreground">PAN: {companyProfile.pan}</p>
         </div>
         <div className="text-right">
           <h2 className="text-3xl font-bold uppercase text-primary">Invoice</h2>
@@ -144,7 +180,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
       )}
 
       <footer className="mt-12 border-t pt-6 text-center text-muted-foreground text-sm">
-        <p>{COMPANY_PROFILE.footerNote}</p>
+        <p>{companyProfile.footerNote}</p>
       </footer>
     </div>
   );

@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useInvoices } from '@/hooks/use-invoices';
+import { useSettings } from '@/hooks/use-settings';
 import type { Invoice, LineItem, Transaction, Currency } from '@/lib/types';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
@@ -73,6 +74,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { addInvoice, updateInvoice, getPreviousLineItems } = useInvoices();
+  const { settings } = useSettings();
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -91,13 +93,21 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           client: { name: '', address: '' },
           lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 }],
           status: 'unpaid',
-          vatPercent: 0,
-          tdsPercent: 0,
+          vatPercent: settings.defaults.vatPercent,
+          tdsPercent: settings.defaults.tdsPercent,
           amountReceived: 0,
           showTransactions: false,
           transactions: [],
         },
   });
+
+  useEffect(() => {
+    // When settings load, if it's a new invoice, update the defaults
+    if (!invoice) {
+        form.setValue('vatPercent', settings.defaults.vatPercent);
+        form.setValue('tdsPercent', settings.defaults.tdsPercent);
+    }
+  }, [settings, form, invoice]);
 
   const { fields: lineItemFields, append: appendLineItem, remove: removeLineItem } = useFieldArray({
     control: form.control,
@@ -553,7 +563,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                             <Switch 
                                 id="vat-switch" 
                                 checked={field.value > 0}
-                                onCheckedChange={(checked) => field.onChange(checked ? 13 : 0)}
+                                onCheckedChange={(checked) => field.onChange(checked ? settings.defaults.vatPercent : 0)}
                             />
                         </FormControl>
                         <FormLabel htmlFor="vat-switch">VAT</FormLabel>
@@ -591,7 +601,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                             <Switch 
                                 id="tds-switch" 
                                 checked={field.value > 0}
-                                onCheckedChange={(checked) => field.onChange(checked ? 1.5 : 0)}
+                                onCheckedChange={(checked) => field.onChange(checked ? settings.defaults.tdsPercent : 0)}
                             />
                         </FormControl>
                         <FormLabel htmlFor="tds-switch">TDS</FormLabel>
