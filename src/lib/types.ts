@@ -21,6 +21,14 @@ export interface LineItem {
   rate: number;
 }
 
+export interface Transaction {
+  id: string;
+  date: string;
+  gateway: string;
+  transactionId: string;
+  amount: number;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -36,4 +44,6 @@ export interface Invoice {
   tdsAmount: number;
   total: number;
   amountReceived?: number;
+  showTransactions: boolean;
+  transactions?: Transaction[];
 }

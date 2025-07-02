@@ -32,7 +32,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
   };
   
   return (
-    <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 relative overflow-hidden" id="invoice-template">
+    <div className="bg-card text-card-foreground shadow-lg rounded-lg p-8 md:p-12 relative overflow-hidden font-mono" id="invoice-template">
       <Watermark text={invoice.status} />
       <header className="flex justify-between items-start mb-10 border-b pb-8">
         <div>
@@ -57,14 +57,14 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
       </header>
 
       <section className="grid grid-cols-2 gap-4 mb-10">
-        <div>
-          <h3 className="font-semibold mb-2">Bill To:</h3>
-          <p className="font-bold">{invoice.client.name}</p>
-          <p className="text-muted-foreground">{invoice.client.address}</p>
-        </div>
-        <div className="text-right">
+        <div className="text-left">
           <p><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), 'PPP')}</p>
           <p><span className="font-semibold">Due Date:</span> {format(new Date(invoice.dueDate), 'PPP')}</p>
+        </div>
+        <div className="text-right">
+          <h3 className="font-semibold mb-2">Invoiced to:</h3>
+          <p className="font-bold">{invoice.client.name}</p>
+          <p className="text-muted-foreground">{invoice.client.address}</p>
         </div>
       </section>
 
@@ -124,6 +124,36 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
           </TableFooter>
         </Table>
       </section>
+
+      {invoice.showTransactions && (
+        <section className="mt-12">
+          <h3 className="text-xl font-bold mb-4 border-t pt-6">Transactions</h3>
+          {invoice.transactions && invoice.transactions.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Gateway</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoice.transactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{format(new Date(tx.date), 'PPP')}</TableCell>
+                    <TableCell>{tx.gateway}</TableCell>
+                    <TableCell>{tx.transactionId}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-muted-foreground text-sm">No related transactions found.</p>
+          )}
+        </section>
+      )}
 
       <footer className="mt-12 border-t pt-6 text-center text-muted-foreground text-sm">
         <p>{COMPANY_PROFILE.footerNote}</p>

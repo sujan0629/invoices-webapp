@@ -9,15 +9,15 @@ import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useInvoices } from '@/hooks/use-invoices';
-import type { Invoice, LineItem } from '@/lib/types';
+import type { Invoice, LineItem, Transaction } from '@/lib/types';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
@@ -28,6 +28,14 @@ const lineItemSchema = z.object({
   description: z.string().min(1, 'Description is required.'),
   quantity: z.coerce.number().min(0.01, 'Quantity must be positive.'),
   rate: z.coerce.number().min(0, 'Rate cannot be negative.'),
+});
+
+const transactionSchema = z.object({
+  id: z.string(),
+  date: z.date(),
+  gateway: z.string().min(1, 'Gateway is required.'),
+  transactionId: z.string().min(1, 'Transaction ID is required.'),
+  amount: z.coerce.number().min(0.01, 'Amount must be positive.'),
 });
 
 const invoiceSchema = z.object({
@@ -43,6 +51,8 @@ const invoiceSchema = z.object({
   vatPercent: z.coerce.number().min(0).max(100),
   tdsPercent: z.coerce.number().min(0).max(100),
   amountReceived: z.coerce.number().optional(),
+  showTransactions: z.boolean(),
+  transactions: z.array(transactionSchema).optional(),
 });
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
@@ -63,6 +73,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           ...invoice,
           issueDate: parseISO(invoice.issueDate),
           dueDate: parseISO(invoice.dueDate),
+          transactions: invoice.transactions?.map(tx => ({...tx, date: parseISO(tx.date)})) || [],
         }
       : {
           invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
@@ -74,12 +85,19 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           vatPercent: 0,
           tdsPercent: 0,
           amountReceived: 0,
+          showTransactions: false,
+          transactions: [],
         },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: lineItemFields, append: appendLineItem, remove: removeLineItem } = useFieldArray({
     control: form.control,
     name: 'lineItems',
+  });
+  
+  const { fields: transactionFields, append: appendTransaction, remove: removeTransaction } = useFieldArray({
+      control: form.control,
+      name: 'transactions',
   });
 
   const watchedLineItems = form.watch('lineItems');
@@ -101,6 +119,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
       ...data,
       issueDate: data.issueDate.toISOString(),
       dueDate: data.dueDate.toISOString(),
+      transactions: data.transactions?.map(tx => ({...tx, date: tx.date.toISOString()})),
       subtotal,
       vatAmount,
       tdsAmount,
@@ -229,7 +248,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {fields.map((field, index) => (
+              {lineItemFields.map((field, index) => (
                 <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start">
                   <FormField
                     control={form.control}
@@ -287,8 +306,8 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                     variant="ghost"
                     size="icon"
                     className="mt-0 md:mt-6 text-destructive hover:bg-destructive/10"
-                    onClick={() => remove(index)}
-                    disabled={fields.length <= 1}
+                    onClick={() => removeLineItem(index)}
+                    disabled={lineItemFields.length <= 1}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -300,11 +319,136 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => append({ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 })}
+              onClick={() => appendLineItem({ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 })}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Add Line Item
             </Button>
           </CardContent>
+        </Card>
+
+         <Card>
+            <CardHeader>
+                <CardTitle>Transactions</CardTitle>
+                <CardDescription>Add any payment transactions related to this invoice.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FormField
+                    control={form.control}
+                    name="showTransactions"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 mb-6">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">
+                                    Show Transactions on Invoice
+                                </FormLabel>
+                                <FormDescription>
+                                    If enabled, a list of transactions will be displayed on the invoice.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+
+                {form.watch('showTransactions') && (
+                    <div className="space-y-4">
+                        {transactionFields.map((field, index) => (
+                            <div key={field.id} className="flex flex-col md:flex-row gap-4 items-start p-2 border rounded-md relative">
+                                <div className="grid md:grid-cols-4 gap-4 flex-grow">
+                                <FormField
+                                    control={form.control}
+                                    name={`transactions.${index}.date`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={cn(index !== 0 && "sr-only")}>Date</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button variant={'outline'} className={cn('w-full text-left font-normal', !field.value && 'text-muted-foreground')}>
+                                                        {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`transactions.${index}.gateway`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={cn(index !== 0 && "sr-only")}>Gateway</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. Stripe, PayPal" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`transactions.${index}.transactionId`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={cn(index !== 0 && "sr-only")}>Transaction ID</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g. ch_123abc..." {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`transactions.${index}.amount`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className={cn(index !== 0 && "sr-only")}>Amount</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                                <Input type="number" step="0.01" className="pl-7" {...field} />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="mt-0 md:mt-6 text-destructive hover:bg-destructive/10"
+                                    onClick={() => removeTransaction(index)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                         <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
+                            onClick={() => appendTransaction({ id: crypto.randomUUID(), date: new Date(), gateway: '', transactionId: '', amount: 0 })}
+                        >
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add Transaction
+                        </Button>
+                    </div>
+                )}
+            </CardContent>
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
