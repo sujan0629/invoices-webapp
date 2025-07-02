@@ -1,13 +1,13 @@
-
 'use client';
 
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileText, LayoutDashboard, PlusCircle, X } from 'lucide-react';
+import { FileText, LayoutDashboard, PlusCircle, UserPlus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COMPANY_PROFILE } from '@/lib/company';
 import Image from 'next/image';
+import { useAuth } from '@/context/auth';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -18,6 +18,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   const pathname = usePathname();
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
+  const { role } = useAuth();
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -84,6 +85,19 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
               New Invoice
             </Link>
           </li>
+          {role === 'admin' && (
+             <li>
+                <Link
+                href="/invites"
+                className={cn('group relative flex items-center gap-2.5 rounded-md py-2 px-4 font-medium duration-300 ease-in-out hover:bg-secondary', {
+                    'bg-secondary text-primary': pathname.includes('/invites'),
+                })}
+                >
+                <UserPlus />
+                Invite Officer
+                </Link>
+            </li>
+          )}
         </ul>
       </nav>
     </aside>

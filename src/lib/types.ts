@@ -1,4 +1,3 @@
-
 export type InvoiceStatus = 'paid' | 'unpaid' | 'partial';
 export type Currency = 'USD' | 'INR' | 'NPR';
 
@@ -48,4 +47,10 @@ export interface Invoice {
   amountReceived?: number;
   showTransactions: boolean;
   transactions?: Transaction[];
+}
+
+export interface Invitation {
+  email: string;
+  code: string;
+  status: 'pending' | 'accepted';
 }

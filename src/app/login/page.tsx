@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -14,6 +13,7 @@ import { useAuth } from '@/context/auth';
 import { useToast } from '@/hooks/use-toast';
 import { FileText, User, UserCog } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Link from 'next/link';
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL!;
 
@@ -127,6 +127,15 @@ export default function LoginPage() {
                             </Button>
                         </form>
                         </Form>
+                         <p className="mt-4 px-2 text-center text-sm text-muted-foreground">
+                            First time?{' '}
+                            <Link
+                                href="/complete-invitation"
+                                className="underline underline-offset-4 hover:text-primary"
+                            >
+                                Use your invitation code
+                            </Link>
+                         </p>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -162,7 +171,7 @@ export default function LoginPage() {
             </TabsContent>
         </Tabs>
         <p className="px-8 text-center text-sm text-muted-foreground">
-          Financial officers can only log in after receiving an invitation from an administrator.
+          Financial officers must be invited by an administrator to create an account.
         </p>
       </div>
     </div>
