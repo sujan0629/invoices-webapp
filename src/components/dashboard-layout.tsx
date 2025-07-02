@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './sidebar';
 import Header from './header';
 import { useAuth } from '@/context/auth';
+import PersistentChat from './persistent-chat';
 
 const authFlowPaths = ['/login', '/verify-2fa', '/complete-invitation'];
 const adminOnlyPaths = ['/invites'];
@@ -58,6 +59,7 @@ export default function DashboardLayout({
             {children}
           </div>
         </main>
+        <PersistentChat />
       </div>
     </div>
   );

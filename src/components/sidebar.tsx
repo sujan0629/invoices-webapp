@@ -11,7 +11,6 @@ import {
   UserPlus,
   Users,
   Settings,
-  LifeBuoy,
   LogOut,
   X
 } from 'lucide-react';
@@ -54,7 +53,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     { href: '/invites', icon: UserPlus, label: 'Invite Officer', adminOnly: true },
     { href: '/clients', icon: Users, label: 'Clients & Projects', adminOnly: false },
     { href: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
-    { href: '/help', icon: LifeBuoy, label: 'Help / Support', adminOnly: false },
   ];
 
   return (
