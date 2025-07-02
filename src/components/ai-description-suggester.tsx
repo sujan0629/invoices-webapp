@@ -75,7 +75,7 @@ export default function AiDescriptionSuggester({
             className="w-full"
           />
         </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-1">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-1" side="bottom" align="start">
         {isLoading ? (
           <div className="p-2 text-sm text-muted-foreground">Loading suggestions...</div>
         ) : suggestions.length > 0 ? (
