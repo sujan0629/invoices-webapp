@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
 import { suggestLineItemDescription } from '@/ai/flows/suggest-line-item-description';
 import { Input } from '@/components/ui/input';
@@ -9,15 +8,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 
 interface AiDescriptionSuggesterProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (...event: any[]) => void;
   previousEntries: string[];
+  [key: string]: any;
 }
 
-export default function AiDescriptionSuggester({
-  value,
-  onChange,
-  previousEntries,
-}: AiDescriptionSuggesterProps) {
+const AiDescriptionSuggester = React.forwardRef<
+  HTMLInputElement,
+  AiDescriptionSuggesterProps
+>(({ value, onChange, previousEntries, ...props }, ref) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -26,18 +25,17 @@ export default function AiDescriptionSuggester({
   const fetchSuggestions = useCallback(async (currentInput: string) => {
     if (currentInput.length < 3) {
       setSuggestions([]);
+      setIsPopoverOpen(false);
       return;
     }
     setIsLoading(true);
+    setIsPopoverOpen(true); 
     try {
       const result = await suggestLineItemDescription({
         currentInput: currentInput,
         previousEntries: previousEntries,
       });
       setSuggestions(result.suggestions || []);
-      if(result.suggestions && result.suggestions.length > 0){
-        setIsPopoverOpen(true);
-      }
     } catch (error) {
       console.error('Error fetching AI suggestions:', error);
       setSuggestions([]);
@@ -50,8 +48,8 @@ export default function AiDescriptionSuggester({
     if (debouncedValue) {
       fetchSuggestions(debouncedValue);
     } else {
-        setSuggestions([]);
-        setIsPopoverOpen(false);
+      setSuggestions([]);
+      setIsPopoverOpen(false);
     }
   }, [debouncedValue, fetchSuggestions]);
 
@@ -65,17 +63,26 @@ export default function AiDescriptionSuggester({
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <PopoverTrigger asChild>
           <Input
+            ref={ref}
             placeholder="e.g. Website design and development"
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={onChange}
             onFocus={() => {
-                if(suggestions.length > 0) setIsPopoverOpen(true);
+                if(value.length >= 3) {
+                   setIsPopoverOpen(true);
+                }
             }}
             autoComplete="off"
             className="w-full"
+            {...props}
           />
         </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-1" side="bottom" align="start">
+      <PopoverContent 
+        className="w-[--radix-popover-trigger-width] p-1" 
+        side="bottom" 
+        align="start"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         {isLoading ? (
           <div className="p-2 text-sm text-muted-foreground">Loading suggestions...</div>
         ) : suggestions.length > 0 ? (
@@ -85,7 +92,10 @@ export default function AiDescriptionSuggester({
                 <button
                   type="button"
                   className="w-full text-left p-2 text-sm rounded-sm hover:bg-accent"
-                  onClick={() => handleSelectSuggestion(suggestion)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(suggestion)
+                  }}
                 >
                   {suggestion}
                 </button>
@@ -93,9 +103,13 @@ export default function AiDescriptionSuggester({
             ))}
           </ul>
         ) : (
-          !isLoading && debouncedValue.length > 2 && <div className="p-2 text-sm text-muted-foreground">No suggestions found.</div>
+          debouncedValue.length >= 3 && !isLoading && <div className="p-2 text-sm text-muted-foreground">No suggestions found.</div>
         )}
       </PopoverContent>
     </Popover>
   );
-}
+});
+
+AiDescriptionSuggester.displayName = "AiDescriptionSuggester";
+
+export default AiDescriptionSuggester;

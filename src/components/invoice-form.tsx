@@ -234,13 +234,12 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                   <FormField
                     control={form.control}
                     name={`lineItems.${index}.description`}
-                    render={({ field: formField }) => (
+                    render={({ field }) => (
                       <FormItem className="flex-grow">
                         <FormLabel className={cn(index !== 0 && "sr-only")}>Description</FormLabel>
                         <FormControl>
                           <AiDescriptionSuggester
-                            value={formField.value}
-                            onChange={formField.onChange}
+                            {...field}
                             previousEntries={getPreviousLineItems()}
                           />
                         </FormControl>
@@ -458,4 +457,3 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
     </Form>
   );
 }
-
