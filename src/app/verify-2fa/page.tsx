@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -33,13 +34,15 @@ const THROTTLE_MS = 30_000; // 30 seconds
 export default function Verify2FAPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, complete2faVerification, logout } = useAuth();
+  const { user, complete2faVerification, logout, loading, is2faVerified } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [role, setRole] = useState('');
 
   const handleSendCode = useCallback(async () => {
+    if (isSending) return;
+
     const lastTs = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
     if (Date.now() - lastTs < THROTTLE_MS && lastTs !== 0) {
       const secondsLeft = Math.ceil((THROTTLE_MS - (Date.now() - lastTs)) / 1000);
@@ -56,9 +59,7 @@ export default function Verify2FAPage() {
 
     try {
         const sessionData = sessionStorage.getItem('auth-session');
-        if (!sessionData) {
-          throw new Error('Session data not found. Please log in again.');
-        }
+        if (!sessionData) throw new Error('Session data not found. Please log in again.');
 
         const { role: sessionRole, email } = JSON.parse(sessionData);
         setRole(sessionRole);
@@ -86,17 +87,30 @@ export default function Verify2FAPage() {
     } finally {
       setIsSending(false);
     }
-  }, [logout, toast]);
-
+  }, [isSending, logout, toast]);
+  
   useEffect(() => {
-    if (user) {
-      // Only call on initial load. Resends are manual.
-      const lastTs = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
-      if (lastTs === 0) {
-        handleSendCode();
-      }
+    if (loading) return;
+    if (is2faVerified) {
+        router.push('/');
+        return;
     }
-  }, [user]);
+
+    const sessionData = sessionStorage.getItem('auth-session');
+    if (!user || !sessionData) {
+      logout();
+      return;
+    }
+
+    const lastTs = parseInt(sessionStorage.getItem(TS_KEY) || '0', 10);
+    if (lastTs === 0) {
+      handleSendCode();
+    } else {
+        const { role: sessionRole } = JSON.parse(sessionData);
+        setRole(sessionRole);
+    }
+  }, [user, loading, is2faVerified, router, logout, handleSendCode]);
+
 
   const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
@@ -108,11 +122,8 @@ export default function Verify2FAPage() {
     const correctCode = sessionStorage.getItem(CODE_KEY);
 
     if (data.code === correctCode) {
-      sessionStorage.removeItem(CODE_KEY);
-      sessionStorage.removeItem(TS_KEY);
-      complete2faVerification();
       toast({ title: 'Success', description: 'Verification successful!' });
-      router.push('/');
+      complete2faVerification(); // This triggers the useEffect to redirect
     } else {
       toast({
         variant: 'destructive',
