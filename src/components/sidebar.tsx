@@ -1,13 +1,25 @@
+
 'use client';
 
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { FileText, LayoutDashboard, PlusCircle, UserPlus, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  FileText,
+  LayoutDashboard,
+  PlusCircle,
+  UserPlus,
+  Users,
+  Settings,
+  LifeBuoy,
+  LogOut,
+  X
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { COMPANY_PROFILE } from '@/lib/company';
 import Image from 'next/image';
 import { useAuth } from '@/context/auth';
+import { Button } from './ui/button';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -16,9 +28,10 @@ interface SidebarProps {
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const trigger = useRef<any>(null);
   const sidebar = useRef<any>(null);
-  const { role } = useAuth();
+  const { role, logout } = useAuth();
 
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
@@ -29,6 +42,20 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     document.addEventListener('click', clickHandler);
     return () => document.removeEventListener('click', clickHandler);
   });
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const navLinks = [
+    { href: '/', icon: LayoutDashboard, label: 'Dashboard', adminOnly: false },
+    { href: '/invoices/new', icon: PlusCircle, label: 'Create Invoice', adminOnly: false },
+    { href: '/invites', icon: UserPlus, label: 'Invite Officer', adminOnly: true },
+    { href: '/clients', icon: Users, label: 'Clients & Projects', adminOnly: false },
+    { href: '/settings', icon: Settings, label: 'Settings', adminOnly: false },
+    { href: '/help', icon: LifeBuoy, label: 'Help / Support', adminOnly: false },
+  ];
 
   return (
     <aside
@@ -61,44 +88,36 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           <X />
         </button>
       </div>
-      <nav className="flex flex-col overflow-y-auto mt-5 py-4 px-4 lg:mt-9 lg:px-6">
+      <nav className="flex flex-col justify-between flex-1 mt-5 py-4 px-4 lg:mt-9 lg:px-6">
         <ul className="flex flex-col gap-1.5">
-          <li>
-            <Link
-              href="/"
-              className={cn('group relative flex items-center gap-2.5 rounded-md py-2 px-4 font-medium duration-300 ease-in-out hover:bg-secondary', {
-                'bg-secondary text-primary': pathname === '/',
-              })}
-            >
-              <LayoutDashboard />
-              Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/invoices/new"
-              className={cn('group relative flex items-center gap-2.5 rounded-md py-2 px-4 font-medium duration-300 ease-in-out hover:bg-secondary', {
-                'bg-secondary text-primary': pathname.includes('/invoices/new'),
-              })}
-            >
-              <PlusCircle />
-              New Invoice
-            </Link>
-          </li>
-          {role === 'admin' && (
-             <li>
+          {navLinks.map((link) => {
+            if (link.adminOnly && role !== 'admin') {
+              return null;
+            }
+            return (
+              <li key={link.href}>
                 <Link
-                href="/invites"
-                className={cn('group relative flex items-center gap-2.5 rounded-md py-2 px-4 font-medium duration-300 ease-in-out hover:bg-secondary', {
-                    'bg-secondary text-primary': pathname.includes('/invites'),
-                })}
+                  href={link.href}
+                  onClick={() => setSidebarOpen(false)}
+                  className={cn(
+                    'group relative flex items-center gap-2.5 rounded-md py-2 px-4 font-medium duration-300 ease-in-out hover:bg-secondary',
+                    { 'bg-secondary text-primary': pathname === link.href }
+                  )}
                 >
-                <UserPlus />
-                Invite Officer
+                  <link.icon />
+                  {link.label}
                 </Link>
-            </li>
-          )}
+              </li>
+            );
+          })}
         </ul>
+
+        <div>
+           <Button variant="ghost" className="w-full justify-start gap-2.5 px-4" onClick={handleLogout}>
+              <LogOut />
+              Log Out
+            </Button>
+        </div>
       </nav>
     </aside>
   );

@@ -46,7 +46,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
                     <Link href="/invoices/new">
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            New Invoice
+                            Create Invoice
                         </Button>
                     </Link>
                     {user && (

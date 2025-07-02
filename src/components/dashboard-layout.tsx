@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -30,7 +31,7 @@ export default function DashboardLayout({
       router.push('/verify-2fa');
     } else if (user && is2faVerified && isAuthFlowPath) {
       router.push('/');
-    } else if (user && is2faVerified && role === 'user' && adminOnlyPaths.includes(pathname)) {
+    } else if (user && is2faVerified && role === 'user' && adminOnlyPaths.some(p => pathname.startsWith(p))) {
         router.push('/');
     }
   }, [user, loading, is2faVerified, pathname, router, role]);
