@@ -28,6 +28,7 @@ export default function Verify2FAPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(true);
   const [verificationCode, setVerificationCode] = useState('');
+  const [role, setRole] = useState('');
 
   useEffect(() => {
     const sessionData = sessionStorage.getItem('auth-session');
@@ -37,7 +38,8 @@ export default function Verify2FAPage() {
     }
 
     const { role, email } = JSON.parse(sessionData);
-    const targetEmail = role === 'admin' ? process.env.NEXT_PUBLIC_ADMIN_2FA_EMAIL! : email;
+    setRole(role);
+    const targetEmail = role === 'admin' ? process.env.ADMIN_2FA_EMAIL! : email;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setVerificationCode(code);
 
@@ -54,7 +56,7 @@ export default function Verify2FAPage() {
       setIsSendingCode(false);
     }
     sendCode();
-  }, []);
+  }, [logout, toast]);
 
   const form = useForm<VerifyFormValues>({
     resolver: zodResolver(verifySchema),
@@ -85,7 +87,10 @@ export default function Verify2FAPage() {
             <ShieldCheck className="mx-auto h-8 w-8 text-primary" />
             <h1 className="text-2xl font-semibold tracking-tight">Two-Factor Authentication</h1>
             <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code sent to your registered email address.
+                {role === 'admin' 
+                    ? 'Enter the 6-digit code sent to the registered admin email address.'
+                    : 'Enter the 6-digit code sent to your email address.'
+                }
             </p>
         </div>
         <Card>

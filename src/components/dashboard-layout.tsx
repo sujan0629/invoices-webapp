@@ -7,8 +7,7 @@ import Sidebar from './sidebar';
 import Header from './header';
 import { useAuth } from '@/context/auth';
 
-const publicPaths = ['/login', '/signup'];
-const authFlowPaths = ['/login', '/signup', '/verify-2fa'];
+const authFlowPaths = ['/login', '/verify-2fa'];
 
 export default function DashboardLayout({
   children,
@@ -16,7 +15,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, loading, is2faVerified, logout } = useAuth();
+  const { user, loading, is2faVerified } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -31,7 +30,7 @@ export default function DashboardLayout({
       // User is logged in but hasn't passed 2FA, force them to the 2FA page.
       router.push('/verify-2fa');
     } else if (user && is2faVerified && isAuthFlowPath) {
-      // Fully authenticated user is trying to access login/signup/2fa, send to dashboard.
+      // Fully authenticated user is trying to access login/2fa, send to dashboard.
       router.push('/');
     }
   }, [user, loading, is2faVerified, pathname, router]);
@@ -44,6 +43,7 @@ export default function DashboardLayout({
     );
   }
 
+  // Render children without the dashboard layout for login, etc.
   if (isAuthFlowPath && (!user || !is2faVerified)) {
     return <main>{children}</main>;
   }

@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getAuth, onAuthStateChanged, User, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, Auth, UserCredential } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, User, signOut, signInWithEmailAndPassword, Auth, UserCredential } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -11,7 +11,6 @@ interface AuthContextType {
   loading: boolean;
   is2faVerified: boolean;
   login: (email: string, pass: string) => Promise<UserCredential>;
-  signup: (email: string, pass: string) => Promise<UserCredential>;
   logout: () => Promise<void>;
   complete2faVerification: () => void;
 }
@@ -41,6 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!user) {
         // If user is null, they are logged out, so 2FA is no longer verified.
         setIs2faVerified(false);
+        sessionStorage.removeItem('auth-session');
       }
       setLoading(false);
     });
@@ -51,11 +51,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = (email: string, pass: string) => {
     if (!auth) return Promise.reject(new Error("Firebase not initialized"));
     return signInWithEmailAndPassword(auth, email, pass);
-  };
-
-  const signup = (email: string, pass: string) => {
-     if (!auth) return Promise.reject(new Error("Firebase not initialized"));
-    return createUserWithEmailAndPassword(auth, email, pass);
   };
 
   const logout = async () => {
@@ -77,7 +72,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
     is2faVerified,
     login,
-    signup,
     logout,
     complete2faVerification
   };
