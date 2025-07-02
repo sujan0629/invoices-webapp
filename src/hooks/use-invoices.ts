@@ -14,7 +14,13 @@ export function useInvoices() {
     try {
       const storedInvoices = localStorage.getItem(INVOICES_STORAGE_KEY);
       if (storedInvoices) {
-        setInvoices(JSON.parse(storedInvoices));
+        const parsedInvoices = JSON.parse(storedInvoices);
+        // Simple migration for old invoices without a currency field
+        const migratedInvoices = parsedInvoices.map((inv: Invoice) => ({
+          ...inv,
+          currency: inv.currency || 'USD',
+        }));
+        setInvoices(migratedInvoices);
       }
     } catch (error) {
       console.error('Failed to load invoices from localStorage', error);
@@ -36,14 +42,14 @@ export function useInvoices() {
     return invoices.find((invoice) => invoice.id === id);
   }, [invoices]);
 
-  const addInvoice = useCallback((invoice: Invoice) => {
+  const addInvoice = useCallback((invoice: Omit<Invoice, 'id'>) => {
     const newInvoice = { ...invoice, id: crypto.randomUUID() };
-    const updatedInvoices = [...invoices, newInvoice];
+    const updatedInvoices = [...invoices, newInvoice as Invoice];
     saveInvoices(updatedInvoices);
     return newInvoice;
   }, [invoices, saveInvoices]);
 
-  const updateInvoice = useCallback((id: string, updatedInvoiceData: Partial<Invoice>) => {
+  const updateInvoice = useCallback((id: string, updatedInvoiceData: Partial<Omit<Invoice, 'id'>>) => {
     const updatedInvoices = invoices.map((invoice) =>
       invoice.id === id ? { ...invoice, ...updatedInvoiceData } : invoice
     );

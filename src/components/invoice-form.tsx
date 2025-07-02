@@ -17,11 +17,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useInvoices } from '@/hooks/use-invoices';
-import type { Invoice, LineItem, Transaction } from '@/lib/types';
+import type { Invoice, LineItem, Transaction, Currency } from '@/lib/types';
 import { Textarea } from './ui/textarea';
 import { Switch } from './ui/switch';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import AiDescriptionSuggester from './ai-description-suggester';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const lineItemSchema = z.object({
   id: z.string(),
@@ -42,6 +43,7 @@ const invoiceSchema = z.object({
   invoiceNumber: z.string().min(1, 'Invoice number is required.'),
   issueDate: z.date(),
   dueDate: z.date(),
+  currency: z.enum(['USD', 'INR', 'NPR']),
   client: z.object({
     name: z.string().min(1, 'Client name is required.'),
     address: z.string().min(1, 'Client address is required.'),
@@ -61,6 +63,12 @@ interface InvoiceFormProps {
   invoice?: Invoice;
 }
 
+const currencySymbols: Record<Currency, string> = {
+  USD: '$',
+  INR: '₹',
+  NPR: 'Rs',
+};
+
 export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -79,6 +87,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
           invoiceNumber: `INV-${Math.floor(Math.random() * 9000) + 1000}`,
           issueDate: new Date(),
           dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
+          currency: 'USD',
           client: { name: '', address: '' },
           lineItems: [{ id: crypto.randomUUID(), description: '', quantity: 1, rate: 0 }],
           status: 'unpaid',
@@ -103,6 +112,9 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
   const watchedLineItems = form.watch('lineItems');
   const watchedVatPercent = form.watch('vatPercent');
   const watchedTdsPercent = form.watch('tdsPercent');
+  const watchedCurrency = form.watch('currency');
+
+  const currencySymbol = currencySymbols[watchedCurrency];
 
   const calculateTotals = () => {
     const subtotal = watchedLineItems.reduce((acc, item) => acc + (item.quantity || 0) * (item.rate || 0), 0);
@@ -172,7 +184,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                 )}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <FormField
                 control={form.control}
                 name="invoiceNumber"
@@ -182,6 +194,28 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
+                        <SelectItem value="INR">INR - Indian Rupee (₹)</SelectItem>
+                        <SelectItem value="NPR">NPR - Nepalese Rupee (Rs)</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -287,7 +321,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                         <FormLabel className={cn(index !== 0 && "sr-only")}>Rate</FormLabel>
                         <FormControl>
                            <div className="relative">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">{currencySymbol}</span>
                             <Input type="number" step="0.01" className="pl-7" {...field} />
                            </div>
                         </FormControl>
@@ -298,7 +332,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                   <div className="w-full md:w-32 text-right">
                     <FormLabel className={cn(index !== 0 && "sr-only")}>Amount</FormLabel>
                     <p className="font-medium h-10 flex items-center justify-end">
-                      ${(watchedLineItems[index].quantity * watchedLineItems[index].rate).toFixed(2)}
+                      {currencySymbol}{(watchedLineItems[index].quantity * watchedLineItems[index].rate).toFixed(2)}
                     </p>
                   </div>
                   <Button
@@ -417,7 +451,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                                         <FormLabel className={cn(index !== 0 && "sr-only")}>Amount</FormLabel>
                                         <FormControl>
                                             <div className="relative">
-                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">{currencySymbol}</span>
                                                 <Input type="number" step="0.01" className="pl-7" {...field} />
                                             </div>
                                         </FormControl>
@@ -506,7 +540,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span>Subtotal</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
+                <span className="font-medium">{currencySymbol}{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -544,7 +578,7 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                       />
                   )}
                 </div>
-                <span className="font-medium">${vatAmount.toFixed(2)}</span>
+                <span className="font-medium">{currencySymbol}{vatAmount.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                  <div className="flex items-center gap-2">
@@ -582,12 +616,12 @@ export default function InvoiceForm({ invoice }: InvoiceFormProps) {
                       />
                   )}
                 </div>
-                <span className="font-medium text-destructive">-${tdsAmount.toFixed(2)}</span>
+                <span className="font-medium text-destructive">-{currencySymbol}{tdsAmount.toFixed(2)}</span>
               </div>
               <hr />
               <div className="flex items-center justify-between text-xl font-bold">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{currencySymbol}{total.toFixed(2)}</span>
               </div>
             </div>
         </div>

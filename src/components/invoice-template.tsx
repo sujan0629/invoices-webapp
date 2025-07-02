@@ -1,6 +1,6 @@
 
 import { COMPANY_PROFILE } from '@/lib/company';
-import type { Invoice } from '@/lib/types';
+import type { Invoice, Currency } from '@/lib/types';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from './ui/table';
@@ -27,8 +27,8 @@ const Watermark = ({ text }: { text: string }) => {
 };
 
 export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatCurrency = (amount: number, currency: Currency) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
   };
   
   return (
@@ -56,15 +56,21 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 gap-4 mb-10">
-        <div className="text-left">
-          <p><span className="font-semibold">Issue Date:</span> {format(new Date(invoice.issueDate), 'PPP')}</p>
-          <p><span className="font-semibold">Due Date:</span> {format(new Date(invoice.dueDate), 'PPP')}</p>
+      <section className="mb-10">
+        <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="text-left">
+                <p className="mb-1"><span className="font-semibold">Issue Date:</span></p>
+                <p>{format(new Date(invoice.issueDate), 'PPP')}</p>
+            </div>
+            <div className="text-left">
+                <p className="mb-1"><span className="font-semibold">Due Date:</span></p>
+                <p>{format(new Date(invoice.dueDate), 'PPP')}</p>
+            </div>
         </div>
-        <div className="text-right">
+        <div className="text-left">
           <h3 className="font-semibold mb-2">Invoiced to:</h3>
           <p className="font-bold">{invoice.client.name}</p>
-          <p className="text-muted-foreground">{invoice.client.address}</p>
+          <p className="text-muted-foreground whitespace-pre-line">{invoice.client.address}</p>
         </div>
       </section>
 
@@ -83,42 +89,42 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.description}</TableCell>
                 <TableCell className="text-center">{item.quantity}</TableCell>
-                <TableCell className="text-right">{formatCurrency(item.rate)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(item.quantity * item.rate)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(item.rate, invoice.currency)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(item.quantity * item.rate, invoice.currency)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
           <TableFooter>
             <TableRow>
                 <TableCell colSpan={3} className="text-right">Subtotal</TableCell>
-                <TableCell className="text-right">{formatCurrency(invoice.subtotal)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(invoice.subtotal, invoice.currency)}</TableCell>
             </TableRow>
             {invoice.vatAmount > 0 && (
                 <TableRow>
                     <TableCell colSpan={3} className="text-right">VAT ({invoice.vatPercent}%)</TableCell>
-                    <TableCell className="text-right">{formatCurrency(invoice.vatAmount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(invoice.vatAmount, invoice.currency)}</TableCell>
                 </TableRow>
             )}
             {invoice.tdsAmount > 0 && (
                 <TableRow>
                     <TableCell colSpan={3} className="text-right text-destructive">TDS ({invoice.tdsPercent}%)</TableCell>
-                    <TableCell className="text-right text-destructive">-{formatCurrency(invoice.tdsAmount)}</TableCell>
+                    <TableCell className="text-right text-destructive">-{formatCurrency(invoice.tdsAmount, invoice.currency)}</TableCell>
                 </TableRow>
             )}
             <TableRow className="text-lg font-bold bg-muted/50">
                 <TableCell colSpan={3} className="text-right">Total</TableCell>
-                <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(invoice.total, invoice.currency)}</TableCell>
             </TableRow>
             {invoice.status === 'partial' && (
                 <TableRow>
                     <TableCell colSpan={3} className="text-right">Amount Received</TableCell>
-                    <TableCell className="text-right">{formatCurrency(invoice.amountReceived || 0)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(invoice.amountReceived || 0, invoice.currency)}</TableCell>
                 </TableRow>
             )}
              {invoice.status === 'partial' && (
                 <TableRow>
                     <TableCell colSpan={3} className="text-right font-semibold">Balance Due</TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(invoice.total - (invoice.amountReceived || 0))}</TableCell>
+                    <TableCell className="text-right font-semibold">{formatCurrency(invoice.total - (invoice.amountReceived || 0), invoice.currency)}</TableCell>
                 </TableRow>
             )}
           </TableFooter>
@@ -144,7 +150,7 @@ export default function InvoiceTemplate({ invoice }: InvoiceTemplateProps) {
                     <TableCell>{format(new Date(tx.date), 'PPP')}</TableCell>
                     <TableCell>{tx.gateway}</TableCell>
                     <TableCell>{tx.transactionId}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(tx.amount)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(tx.amount, invoice.currency)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -1,5 +1,6 @@
 
 export type InvoiceStatus = 'paid' | 'unpaid' | 'partial';
+export type Currency = 'USD' | 'INR' | 'NPR';
 
 export interface Company {
   name: string;
@@ -37,6 +38,7 @@ export interface Invoice {
   client: Client;
   lineItems: LineItem[];
   status: InvoiceStatus;
+  currency: Currency;
   vatPercent: number;
   tdsPercent: number;
   subtotal: number;

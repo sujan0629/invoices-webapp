@@ -9,12 +9,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import InvoiceStatusBadge from '@/components/invoice-status-badge';
 import InvoiceActions from '@/components/invoice-actions';
 import { format } from 'date-fns';
+import type { Currency } from '@/lib/types';
 
 export default function Home() {
   const { invoices } = useInvoices();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  const formatCurrency = (amount: number, currency: Currency) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency }).format(amount);
   };
 
   return (
@@ -45,7 +46,7 @@ export default function Home() {
                     <TableCell>
                       <InvoiceStatusBadge status={invoice.status} />
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(invoice.total, invoice.currency)}</TableCell>
                     <TableCell className="text-right">
                       <InvoiceActions invoiceId={invoice.id} />
                     </TableCell>
